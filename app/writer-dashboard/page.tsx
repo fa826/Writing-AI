@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 const sidebarItems = [
   "Document Library",
@@ -18,13 +21,71 @@ const prompts = [
 ];
 
 export default function WriterDashboardPage() {
+  const [input, setInput] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleImprove() {
+    if (!input.trim()) {
+      setResult("Please enter some text first.");
+      return;
+    }
+
+    setLoading(true);
+    setResult("");
+
+    try {
+      const res = await fetch("/api/improve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: input }),
+      });
+
+      const data = await res.json();
+      setResult(data.result || data.error || "No response received.");
+    } catch {
+      setResult("Error improving text.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSummarize() {
+    if (!input.trim()) {
+      setResult("Please enter some text first.");
+      return;
+    }
+
+    setLoading(true);
+    setResult("");
+
+    try {
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: input }),
+      });
+
+      const data = await res.json();
+      setResult(data.result || data.error || "No response received.");
+    } catch {
+      setResult("Error summarizing text.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-white p-4">
       <div className="min-h-[calc(100vh-32px)] overflow-hidden rounded-[32px] border border-[#D7DEEE] bg-[#F8FAFF] shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
         {/* Top Header */}
-        <header className="flex items-center justify-between bg-[#1F3772] px-10 py-6 border-b border-[#E4EAF5]">
+        <header className="flex items-center justify-between border-b border-[#E4EAF5] bg-[#1F3772] px-10 py-6">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-2xl font-semibold tracking-tight">
+            <Link href="/" className="text-2xl font-semibold tracking-tight text-white">
               Scriptora
             </Link>
           </div>
@@ -38,10 +99,10 @@ export default function WriterDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:bg-[#EEF3FC]">
+            <button className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:bg-[#EEF3FC] hover:text-[#1F3772]">
               Language
             </button>
-            <button className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:bg-[#EEF3FC]">
+            <button className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:bg-[#EEF3FC] hover:text-[#1F3772]">
               Light
             </button>
             <button className="rounded-xl bg-[#3B64BA] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#2D53A0]">
@@ -54,29 +115,28 @@ export default function WriterDashboardPage() {
         </header>
 
         {/* Main Layout */}
-        <div className="grid min-h-[calc(100vh-88px)] grid-cols-[240px_1fr_300px]">
+        <div className="grid min-h-[calc(100vh-88px)] grid-cols-[220px_1fr_360px] overflow-hidden">
           {/* Sidebar */}
           <aside className="bg-[#1F3772] px-5 py-6 text-white">
             <div className="space-y-3">
-              {sidebarItems.map((item, index) => (
+              {sidebarItems.map((item) => (
                 <button
                   key={item}
-                  className="flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-medium transition">
+                  className="flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-medium transition hover:bg-white/10"
+                >
                   {item}
                 </button>
               ))}
             </div>
 
-            <div className="mt-auto pt-10">
-              <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm font-medium">Current Writer</p>
-                <p className="mt-1 text-xs text-white/70">workspace active</p>
-              </div>
+            <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm font-medium">Current Writer</p>
+              <p className="mt-1 text-xs text-white/70">workspace active</p>
             </div>
           </aside>
 
           {/* Center Panel */}
-          <section className="border-r border-[#E4EAF5] bg-[#F6F8FD] px-5 py-5">
+          <section className="overflow-y-auto border-r border-[#E4EAF5] bg-[#F6F8FD] px-5 py-5">
             {/* Toolbar Row */}
             <div className="mb-4 flex items-center justify-between gap-4">
               <div className="flex flex-1 items-center gap-3">
@@ -173,7 +233,7 @@ export default function WriterDashboardPage() {
           </section>
 
           {/* Right AI Panel */}
-          <aside className="bg-white px-4 py-5">
+          <aside className="overflow-y-auto bg-white px-4 py-5">
             <div className="rounded-[24px] border border-[#D7DEEE] bg-[#FBFCFF] shadow-sm">
               <div className="border-b border-[#E4EAF5] px-5 py-4">
                 <h2 className="text-[24px] font-semibold text-[#1F2A44]">
@@ -182,52 +242,50 @@ export default function WriterDashboardPage() {
               </div>
 
               <div className="px-4 py-4">
-                <div className="rounded-2xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#5E6B85]">
-                  How can I help you write today?
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Paste your paragraph or essay here..."
+                  className="min-h-[160px] w-full rounded-2xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none"
+                />
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <button
+                    onClick={handleImprove}
+                    className="rounded-xl bg-[#3B64BA] px-4 py-3 font-semibold text-white transition hover:bg-[#2D53A0]"
+                  >
+                    Improve Writing
+                  </button>
+
+                  <button
+                    onClick={handleSummarize}
+                    className="rounded-xl bg-[#E6EBF7] px-4 py-3 font-semibold text-[#3B64BA] transition hover:bg-[#D8E1F5]"
+                  >
+                    Summarize
+                  </button>
                 </div>
 
-                <div className="mt-5">
+                <div className="mt-5 min-h-[180px] whitespace-pre-wrap rounded-2xl border border-[#D7DEEE] bg-white px-4 py-4 text-sm leading-6 text-[#42526B]">
+                  {loading ? "Processing..." : result || "AI response will appear here."}
+                </div>
+
+                <div className="mt-8">
                   <h3 className="text-sm font-semibold text-[#1F2A44]">
                     Example Prompts
                   </h3>
 
                   <div className="mt-3 space-y-3">
                     {prompts.map((prompt) => (
-                      <div
+                      <button
                         key={prompt}
-                        className="rounded-2xl border border-[#E4EAF5] bg-white px-4 py-4 text-sm leading-6 text-[#42526B]"
+                        onClick={() => setInput(prompt)}
+                        className="block w-full rounded-2xl border border-[#E4EAF5] bg-white px-4 py-4 text-left text-sm leading-6 text-[#42526B] hover:bg-[#F6F8FD]"
                       >
                         {prompt}
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
-
-                <button className="mt-5 w-full rounded-xl bg-[#3B64BA] px-4 py-3 font-semibold text-white transition hover:bg-[#2D53A0]">
-                  Send
-                </button>
-
-                <div className="mt-8">
-                  <h3 className="text-sm font-semibold text-[#1F2A44]">
-                    Quick Actions
-                  </h3>
-
-                  <div className="mt-3 space-y-3 text-sm text-[#42526B]">
-                    <div className="rounded-xl bg-[#F6F8FD] px-4 py-3">
-                      Fix grammar issues
-                    </div>
-                    <div className="rounded-xl bg-[#F6F8FD] px-4 py-3">
-                      Check sentence structure
-                    </div>
-                    <div className="rounded-xl bg-[#F6F8FD] px-4 py-3">
-                      Generate citation
-                    </div>
-                  </div>
-                </div>
-
-                <button className="mt-8 w-full rounded-xl bg-[#3B64BA] px-4 py-3 font-semibold text-white transition hover:bg-[#2D53A0]">
-                  Send
-                </button>
               </div>
             </div>
           </aside>
