@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import anthropic from "@/lib/anthropic";
-import { SUMMARIZE_WRITING_PROMPT } from "@/lib/prompts";
+import { DRAFT_WRITING_PROMPT } from "@/lib/prompts";
 
 export async function GET() {
-  return NextResponse.json({ message: "Summarize API is working" });
+  return NextResponse.json({ message: "Draft API is working" });
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const text = body.text?.trim();
+    const prompt = body.prompt?.trim();
+    const type = body.type?.trim() || "essay";
 
-    if (!text) {
+    if (!prompt) {
       return NextResponse.json(
-        { error: "Text is required." },
+        { error: "Prompt is required." },
         { status: 400 }
       );
     }
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "user",
-          content: `${SUMMARIZE_WRITING_PROMPT}\n\nText to summarize:\n${text}`,
+          content: `${DRAFT_WRITING_PROMPT}\n\nWrite a ${type} about:\n${prompt}`,
         },
       ],
     });
@@ -34,9 +35,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ result });
   } catch (error) {
-    console.error("Summarize error:", error);
+    console.error("Draft error:", error);
     return NextResponse.json(
-      { error: "Failed to summarize writing." },
+      { error: "Failed to generate draft." },
       { status: 500 }
     );
   }
