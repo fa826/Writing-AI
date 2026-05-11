@@ -24,3 +24,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.phone-input{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.phone-input inpit{
+  width: 100%;
+  background: transparent;
+  outline: none;
+  border: none;
+}
+
+.phone-input select{
+  background: transparent;
+  outline: none;
+  border: none;
+}
