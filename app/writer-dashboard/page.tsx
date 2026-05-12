@@ -1,295 +1,240 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+type Draft = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 const sidebarItems = [
+  "Writer Dashboard",
   "Document Library",
   "Resources List",
-  "Citations",
+  "Citation",
   "Doc History",
   "Plagiarism Check",
-  "Notes",
-  "Publish",
 ];
 
-const prompts = [
-  "Explain the ethical concerns of AI in writing.",
-  "List key milestones in the history of artificial intelligence.",
-  'Improve the sentence: "The report is written in a concise manner and is very informative".',
-  "Provide counterarguments against the use of AI in writing.",
-];
+function countWords(text: string) {
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
 
 export default function WriterDashboardPage() {
-  const [input, setInput] = useState("");
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [tasks, setTasks] = useState([
+    { text: "Create a new story draft", done: false },
+    { text: "Revise your latest chapter", done: false },
+    { text: "Prepare one story for publishing", done: false },
+  ]);
 
-  async function handleImprove() {
-    if (!input.trim()) {
-      setResult("Please enter some text first.");
-      return;
+  useEffect(() => {
+    const savedDrafts = localStorage.getItem("scriptora_drafts");
+    const savedTasks = localStorage.getItem("scriptora_writer_tasks");
+
+    if (savedDrafts) {
+      setDrafts(JSON.parse(savedDrafts));
     }
 
-    setLoading(true);
-    setResult("");
-
-    try {
-      const res = await fetch("/api/improve", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text: input }),
-      });
-
-      const data = await res.json();
-      setResult(data.result || data.error || "No response received.");
-    } catch {
-      setResult("Error improving text.");
-    } finally {
-      setLoading(false);
+    if (savedTasks) {
+      setTasks(JSON.parse(savedTasks));
     }
-  }
+  }, []);
 
-  async function handleSummarize() {
-    if (!input.trim()) {
-      setResult("Please enter some text first.");
-      return;
-    }
+  const totalWords = useMemo(() => {
+    return drafts.reduce((sum, draft) => sum + countWords(draft.content), 0);
+  }, [drafts]);
 
-    setLoading(true);
-    setResult("");
+  function toggleTask(index: number) {
+    const updated = tasks.map((task, i) =>
+      i === index ? { ...task, done: !task.done } : task
+    );
 
-    try {
-      const res = await fetch("/api/summarize", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text: input }),
-      });
-
-      const data = await res.json();
-      setResult(data.result || data.error || "No response received.");
-    } catch {
-      setResult("Error summarizing text.");
-    } finally {
-      setLoading(false);
-    }
+    setTasks(updated);
+    localStorage.setItem("scriptora_writer_tasks", JSON.stringify(updated));
   }
 
   return (
-    <main className="min-h-screen bg-white p-4">
-      <div className="min-h-[calc(100vh-32px)] overflow-hidden rounded-[32px] border border-[#D7DEEE] bg-[#F8FAFF] shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
-        {/* Top Header */}
-        <header className="flex items-center justify-between border-b border-[#E4EAF5] bg-[#1F3772] px-10 py-6">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-2xl font-semibold tracking-tight text-white">
-              Scriptora
-            </Link>
+    <main className="h-screen bg-[#10255C] p-4 text-white">
+      <div className="mb-6 flex items-center justify-center gap-3">
+        <div className="text-5xl font-black text-[#6EA2FF]">S</div>
+        <h1 className="text-5xl font-semibold tracking-tight">Scriptora</h1>
+      </div>
+
+      <div className="mx-auto grid min-h-[calc(100vh-120px)] max-w-7xl grid-cols-[280px_1fr] overflow-hidden rounded-2xl border border-white/20 bg-[#142B68]/80 shadow-2xl max-lg:grid-cols-1">
+        <aside className="border-r border-white/10 bg-[#0D1E4B]/80 p-5 max-lg:border-r-0 max-lg:border-b">
+          <Link href="/" className="mb-8 flex items-center gap-3 text-2xl font-bold">
+            <span className="text-[#6EA2FF]">S</span>
+            Scriptora
+          </Link>
+
+          <div className="space-y-2">
+            {sidebarItems.map((item, index) => (
+              <button
+                key={item}
+                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                  index === 0
+                    ? "bg-[#426DD8] text-white shadow-lg"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
           </div>
 
-          <div className="flex w-[38%] items-center rounded-xl border border-[#D7DEEE] bg-[#F8FAFF] px-4 py-2">
+          <div className="mt-10 rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm text-white/60">My Projects</p>
+            <div className="mt-3 flex items-center justify-between rounded-lg bg-[#1C397E] px-3 py-3">
+              <span className="text-sm font-semibold">{drafts.length} drafts</span>
+              <span>›</span>
+            </div>
+          </div>
+        </aside>
+
+        <section className="flex min-h-full flex-col">
+          <header className="flex items-center justify-between gap-4 border-b border-white/10 bg-[#18336F]/70 px-7 py-5 max-md:flex-col max-md:items-stretch">
             <input
-              type="text"
-              placeholder="Search"
-              className="w-full bg-transparent text-sm text-[#1F2A44] outline-none placeholder:text-[#94A3B8]"
+              placeholder="Search documents..."
+              className="w-[55%] rounded-xl border border-white/20 bg-[#10275F] px-4 py-3 text-sm text-white outline-none placeholder:text-white/50 max-md:w-full"
             />
-          </div>
 
-          <div className="flex items-center gap-3">
-            <button className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:bg-[#EEF3FC] hover:text-[#1F3772]">
-              Language
-            </button>
-            <button className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:bg-[#EEF3FC] hover:text-[#1F3772]">
-              Light
-            </button>
-            <button className="rounded-xl bg-[#3B64BA] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#2D53A0]">
-              Share
-            </button>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#D8E1F5] text-sm text-[#3B64BA]">
-              U
+            <div className="flex items-center gap-5 text-xl">
+              <Link href="/notifications">🔔</Link>
+              <Link href="/my-library">📚</Link>
+              <Link href="/profile">👤</Link>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Main Layout */}
-        <div className="grid min-h-[calc(100vh-88px)] grid-cols-[220px_1fr_360px] overflow-hidden">
-          {/* Sidebar */}
-          <aside className="bg-[#1F3772] px-5 py-6 text-white">
-            <div className="space-y-3">
-              {sidebarItems.map((item) => (
-                <button
-                  key={item}
-                  className="flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-medium transition hover:bg-white/10"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-sm font-medium">Current Writer</p>
-              <p className="mt-1 text-xs text-white/70">workspace active</p>
-            </div>
-          </aside>
-
-          {/* Center Panel */}
-          <section className="overflow-y-auto border-r border-[#E4EAF5] bg-[#F6F8FD] px-5 py-5">
-            {/* Toolbar Row */}
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div className="flex flex-1 items-center gap-3">
-                <div className="flex-1 rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] shadow-sm">
-                  Research Paper on AI
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button className="rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm font-medium text-[#42526B] shadow-sm hover:bg-[#EEF3FC]">
-                  Share
-                </button>
-                <button className="rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm font-medium text-[#42526B] shadow-sm hover:bg-[#EEF3FC]">
-                  Download
-                </button>
-              </div>
-            </div>
-
-            {/* Editor Card */}
-            <div className="rounded-[24px] border border-[#D7DEEE] bg-white shadow-sm">
-              <div className="border-b border-[#E4EAF5] px-5 py-3 text-sm text-[#5E6B85]">
-                Style • Normal text • B I U
-              </div>
-
-              <div className="px-6 py-6">
-                <h1 className="text-[42px] font-bold leading-tight text-[#1F2A44]">
-                  Artificial Intelligence in Modern Writing
-                </h1>
-
-                <div className="mt-6 space-y-5 text-[17px] leading-8 text-[#42526B]">
-                  <p>
-                    In the modern writing environment, AI has transformed how
-                    authors, researchers, and students draft, refine, and
-                    organize their work.
-                  </p>
-                  <p>
-                    AI-powered tools support brainstorming, grammar correction,
-                    sentence restructuring, summarization, and citation
-                    generation, helping writers produce stronger work more
-                    efficiently.
-                  </p>
-                  <p>
-                    At the same time, the use of AI in writing raises important
-                    questions about ethics, originality, transparency, and the
-                    balance between human creativity and automation.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-[#E4EAF5] px-5 py-3 text-sm text-[#5E6B85]">
-                <div className="flex items-center gap-4">
-                  <span>Autosaved</span>
-                  <div className="h-2 w-40 rounded-full bg-[#E6EBF7]">
-                    <div className="h-2 w-3/4 rounded-full bg-[#59D1D1]" />
-                  </div>
-                  <span>452 words</span>
-                </div>
-                <span>Grammar: Good</span>
-              </div>
-            </div>
-
-            {/* Writing Space Preview */}
-            <div className="mt-5 rounded-[24px] border border-[#D7DEEE] bg-white shadow-sm">
-              <div className="border-b border-[#E4EAF5] px-5 py-4">
-                <h2 className="text-[22px] font-semibold text-[#1F2A44]">
-                  Writing Space
-                </h2>
-              </div>
-
-              <div className="px-6 py-6">
-                <h3 className="text-[32px] font-bold text-[#1F2A44]">
-                  Artificial Intelligence in Modern Writing
-                </h3>
-
-                <p className="mt-5 text-[16px] leading-8 text-[#42526B]">
-                  Introductions supporting the AI-researching models are
-                  impacting the writing environment and enabling authors to
-                  produce, revise, and strengthen their work through intelligent
-                  tools for clarity, structure, citation, and grammar.
+          <div className="grid flex-1 grid-cols-[minmax(0,1fr)_320px] gap-5 p-6 max-lg:grid-cols-1 max-sm:p-4">
+            <div className="space-y-5">
+              <section className="rounded-2xl bg-white/5 p-6">
+                <h2 className="text-4xl font-bold">Welcome back!</h2>
+                <p className="mt-2 text-xl text-white/70">
+                  Ready to write something great?
                 </p>
-              </div>
 
-              <div className="flex items-center justify-between border-t border-[#E4EAF5] px-5 py-3 text-sm text-[#5E6B85]">
-                <div className="flex items-center gap-4">
-                  <span>Word</span>
-                  <div className="h-2 w-40 rounded-full bg-[#E6EBF7]">
-                    <div className="h-2 w-3/4 rounded-full bg-[#59D1D1]" />
+                <div className="mt-6 flex gap-4">
+                  <Link
+                    href="/write"
+                    className="rounded-xl bg-[#6EA2FF] px-5 py-3 font-semibold text-[#081B43]"
+                  >
+                    + New Document
+                  </Link>
+
+                  <button className="rounded-xl border border-white/20 px-5 py-3 font-semibold text-white">
+                    Open Library
+                  </button>
+                </div>
+              </section>
+
+              <section className="rounded-2xl bg-white/5 p-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-semibold">Recent Documents</h3>
+                  <button className="text-sm text-white/60">View All</button>
+                </div>
+
+                {drafts.length === 0 ? (
+                  <div className="mt-5 rounded-xl border border-dashed border-white/20 p-8 text-center text-white/60">
+                    No drafts yet. Click “New Document” to start writing.
                   </div>
-                  <span>492 words</span>
-                </div>
-                <span>Grammar: Good</span>
-              </div>
-            </div>
-          </section>
+                ) : (
+                  <div className="mt-5 grid grid-cols-3 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1">
+                    {drafts.slice(0, 3).map((draft) => (
+                      <div key={draft.id}>
+                        <div className="flex h-44 items-end rounded-xl bg-gradient-to-br from-[#365FAC] to-[#081B43] p-4 shadow-lg">
+                          <p className="text-xl font-bold leading-tight">
+                            {draft.title}
+                          </p>
+                        </div>
 
-          {/* Right AI Panel */}
-          <aside className="overflow-y-auto bg-white px-4 py-5">
-            <div className="rounded-[24px] border border-[#D7DEEE] bg-[#FBFCFF] shadow-sm">
-              <div className="border-b border-[#E4EAF5] px-5 py-4">
-                <h2 className="text-[24px] font-semibold text-[#1F2A44]">
-                  Writing AI
-                </h2>
-              </div>
+                        <p className="mt-3 text-sm font-semibold">
+                          {countWords(draft.content)} words
+                        </p>
 
-              <div className="px-4 py-4">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Paste your paragraph or essay here..."
-                  className="min-h-[160px] w-full rounded-2xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none"
-                />
-
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <button
-                    onClick={handleImprove}
-                    className="rounded-xl bg-[#3B64BA] px-4 py-3 font-semibold text-white transition hover:bg-[#2D53A0]"
-                  >
-                    Improve Writing
-                  </button>
-
-                  <button
-                    onClick={handleSummarize}
-                    className="rounded-xl bg-[#E6EBF7] px-4 py-3 font-semibold text-[#3B64BA] transition hover:bg-[#D8E1F5]"
-                  >
-                    Summarize
-                  </button>
-                </div>
-
-                <div className="mt-5 min-h-[180px] whitespace-pre-wrap rounded-2xl border border-[#D7DEEE] bg-white px-4 py-4 text-sm leading-6 text-[#42526B]">
-                  {loading ? "Processing..." : result || "AI response will appear here."}
-                </div>
-
-                <div className="mt-8">
-                  <h3 className="text-sm font-semibold text-[#1F2A44]">
-                    Example Prompts
-                  </h3>
-
-                  <div className="mt-3 space-y-3">
-                    {prompts.map((prompt) => (
-                      <button
-                        key={prompt}
-                        onClick={() => setInput(prompt)}
-                        className="block w-full rounded-2xl border border-[#E4EAF5] bg-white px-4 py-4 text-left text-sm leading-6 text-[#42526B] hover:bg-[#F6F8FD]"
-                      >
-                        {prompt}
-                      </button>
+                        <p className="text-xs text-white/50">
+                          Updated {new Date(draft.updatedAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     ))}
                   </div>
+                )}
+              </section>
+
+              <section className="rounded-2xl bg-white/5 p-6">
+                <h3 className="text-2xl font-semibold">Writing Tasks</h3>
+
+                <div className="mt-4 space-y-3">
+                  {tasks.map((task, index) => (
+                    <label
+                      key={task.text}
+                      className="flex items-center gap-3 border-b border-white/10 pb-3 text-white/80"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={task.done}
+                        onChange={() => toggleTask(index)}
+                        className="h-4 w-4"
+                      />
+                      <span className={task.done ? "line-through text-white/40" : ""}>
+                        {task.text}
+                      </span>
+                    </label>
+                  ))}
                 </div>
-              </div>
+              </section>
             </div>
-          </aside>
-        </div>
+
+            <aside className="space-y-5">
+              <section className="rounded-2xl bg-white/5 p-6">
+                <h3 className="text-2xl font-semibold">Writing Stats</h3>
+
+                <div className="mx-auto mt-6 flex h-44 w-44 items-center justify-center rounded-full border-[12px] border-[#6EA2FF]">
+                  <div className="text-center">
+                    <p className="text-4xl font-bold">{totalWords}</p>
+                    <p className="text-sm text-white/60">total words</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3 text-sm text-white/80">
+                  <div className="flex justify-between">
+                    <span>Total Drafts</span>
+                    <span>{drafts.length}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span>Completed Tasks</span>
+                    <span>{tasks.filter((task) => task.done).length}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span>Status</span>
+                    <span>Active Writer</span>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl bg-white/5 p-6">
+                <h3 className="text-xl font-semibold">Writing Resources</h3>
+
+                <div className="mt-5 grid grid-cols-2 gap-4">
+                  {["Plot", "Grammar", "Characters", "Citations"].map((resource) => (
+                    <button
+                      key={resource}
+                      className="rounded-xl border border-white/10 bg-[#1C397E] px-3 py-6 text-sm font-semibold hover:bg-[#426DD8]"
+                    >
+                      {resource}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </aside>
+          </div>
+        </section>
       </div>
     </main>
   );
