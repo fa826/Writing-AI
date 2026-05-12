@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import anthropic from "@/lib/anthropic";
+import { IMPROVE_WRITING_PROMPT } from "@/lib/prompts";
 
 export async function GET() {
   return NextResponse.json({ message: "Improve API is working" });
@@ -16,10 +18,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const improvedText = `Improved version:\n\n${text}`;
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: `${IMPROVE_WRITING_PROMPT}\n\nText to improve:\n${text}`,
+        },
+      ],
+    });
 
-    return NextResponse.json({ result: improvedText });
-  } catch {
+    const result =
+      message.content[0].type === "text" ? message.content[0].text : "";
+
+    return NextResponse.json({ result });
+  } catch (error) {
+    console.error("Improve error:", error);
     return NextResponse.json(
       { error: "Failed to improve writing." },
       { status: 500 }

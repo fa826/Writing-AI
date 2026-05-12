@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import anthropic from "@/lib/anthropic";
-import { SUMMARIZE_WRITING_PROMPT } from "@/lib/prompts";
+import { FEEDBACK_WRITING_PROMPT } from "@/lib/prompts";
 
 export async function GET() {
-  return NextResponse.json({ message: "Summarize API is working" });
+  return NextResponse.json({ message: "Feedback API is working" });
 }
 
 export async function POST(req: NextRequest) {
@@ -24,19 +24,20 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "user",
-          content: `${SUMMARIZE_WRITING_PROMPT}\n\nText to summarize:\n${text}`,
+          content: `${FEEDBACK_WRITING_PROMPT}\n\nText to analyze:\n${text}`,
         },
       ],
     });
 
-    const result =
-      message.content[0].type === "text" ? message.content[0].text : "";
+    const raw =
+      message.content[0].type === "text" ? message.content[0].text : "{}";
 
-    return NextResponse.json({ result });
+    const feedback = JSON.parse(raw);
+    return NextResponse.json({ feedback });
   } catch (error) {
-    console.error("Summarize error:", error);
+    console.error("Feedback error:", error);
     return NextResponse.json(
-      { error: "Failed to summarize writing." },
+      { error: "Failed to get feedback." },
       { status: 500 }
     );
   }
