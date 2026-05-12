@@ -39,3 +39,22 @@ Analyze the submitted text for originality and return ONLY a JSON object with no
   "notes": "string"
 }
 `;
+
+export const BOOK_COVER_PROMPT = `
+You are a creative director specializing in book cover design.
+Given a book title, genre, and description, write a detailed visual prompt
+for an AI image generator. Describe: art style, color palette, mood,
+composition, key visual elements. Be specific and vivid.
+Return only the image generation prompt, nothing else.
+`;
+
+export const CITATION_PROMPT = `
+You are an academic citation expert.
+Given source information, generate properly formatted citations.
+Return ONLY a JSON object with no markdown in this exact shape:
+{
+  "apa": "string",
+  "mla": "string",
+  "chicago": "string"
+}
+`;
