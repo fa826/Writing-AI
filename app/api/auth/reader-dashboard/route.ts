@@ -224,7 +224,6 @@ export async function GET() {
       romanceBooks: romanceBooks.slice(0, 4),
       fantasyBooks: fantasyBooks.slice(0, 4),
       academicArticles,
-      scriptoraOriginals,
       continueReading,
       authors,
       forumUsers,

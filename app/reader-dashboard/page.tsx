@@ -97,7 +97,7 @@ export default function ReaderDashboard() {
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        const res = await fetch("/api/auth/reader-dashboard");
+        const res = await fetch("/api/auth/reader-dashboard", {cache: "no-store",} );
 
         if (!res.ok) {
           throw new Error("Failed to load dashboard.");
@@ -111,12 +111,19 @@ export default function ReaderDashboard() {
         setRomanceBooks(data.romanceBooks || []);
         setFantasyBooks(data.fantasyBooks || []);
         setAcademicArticles(data.academicArticles || []);
-        setScriptoraOriginals(data.scriptoraOriginals || []);
+        const savedPublished = localStorage.getItem("scriptora_published_stories");
+        const publishedStories = savedPublished ? JSON.parse(savedPublished) : [];
+
+        setScriptoraOriginals(publishedStories);
         setAuthors(data.authors || []);
         setForumUsers(data.forumUsers || []);
         setGoogleBooks(data.googleBooks || []);
       } catch (error) {
         console.error("Reader dashboard error:", error);
+        const savedPublished = localStorage.getItem("scriptora_published_stories");
+        const publishedStories = savedPublished ? JSON.parse(savedPublished) : [];
+
+  setScriptoraOriginals(publishedStories);
       } finally {
         setLoading(false);
       }

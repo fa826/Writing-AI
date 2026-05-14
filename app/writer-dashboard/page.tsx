@@ -1,544 +1,413 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+type Draft = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type DropdownType = "notifications" | "library" | "messages" | "profile" | null;
 
 const sidebarItems = [
-  { label: "Document Library", icon: "📁" },
-  { label: "Resources List", icon: "📋" },
-  { label: "Citations", icon: "📎" },
-  { label: "Doc History", icon: "🕒" },
-  { label: "Plagiarism Check", icon: "🔍" },
-  { label: "Notes", icon: "📝" },
-  { label: "Publish", icon: "🚀" },
+  { label: "Writer Dashboard", icon: "▣" },
+  { label: "Document Library", icon: "▤" },
+  { label: "Resources List", icon: "▧" },
+  { label: "Citation", icon: "♜" },
+  { label: "Doc History", icon: "◉" },
+  { label: "Plagiarism Check", icon: "◆" },
 ];
 
-const examplePrompts = [
-  "Explain the ethical concerns of AI in writing.",
-  "List key milestones in the history of artificial intelligence.",
-  'Improve: "The report is written in a concise manner and is very informative".',
-  "Provide counterarguments against the use of AI in writing.",
-];
+function countWords(text?: string) {
+  if (!text) return 0;
+  return text.trim().split(/\s+/).length;
+}
 
-type ActiveTool = "improve" | "draft" | "feedback" | "plagiarism" | "cover" | "citation";
+function IconBell() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7Z" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
 
-type Citations = { apa: string; mla: string; chicago: string };
-type Feedback = {
-  grammar: { issue: string; suggestion: string }[];
-  clarity: { issue: string; suggestion: string }[];
-  structure: { issue: string; suggestion: string }[];
-  overall: string;
-};
-type PlagiarismResult = {
-  similarityScore: number;
-  flaggedPhrases: { phrase: string; reason: string }[];
-  verdict: string;
-  notes: string;
-};
+function IconBook() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M4 19a2.5 2.5 0 0 1 2.5-2.5H20" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function IconMessage() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
 
 export default function WriterDashboardPage() {
-  const [activeTool, setActiveTool] = useState<ActiveTool>("improve");
-  const [input, setInput] = useState("");
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
+  const [tasks, setTasks] = useState([
+    { text: "Create a new story draft", done: false },
+    { text: "Revise your latest chapter", done: false },
+    { text: "Prepare one story for publishing", done: false },
+    { text: "Edit chapter for grammar errors", done: false },
+  ]);
+  const [showProjectsPopup, setShowProjectsPopup] = useState(false);
 
-  const [coverTitle, setCoverTitle] = useState("");
-  const [coverGenre, setCoverGenre] = useState("");
-  const [coverDescription, setCoverDescription] = useState("");
-  const [coverImage, setCoverImage] = useState<string | null>(null);
+  useEffect(() => {
+    const savedDrafts = localStorage.getItem("scriptora_drafts");
+    const savedTasks = localStorage.getItem("scriptora_writer_tasks");
 
-  const [citationTitle, setCitationTitle] = useState("");
-  const [citationAuthor, setCitationAuthor] = useState("");
-  const [citationYear, setCitationYear] = useState("");
-  const [citationUrl, setCitationUrl] = useState("");
-  const [citationType, setCitationType] = useState("book");
-  const [citations, setCitations] = useState<Citations | null>(null);
+    if (savedDrafts) setDrafts(JSON.parse(savedDrafts));
+    if (savedTasks) setTasks(JSON.parse(savedTasks));
+  }, []);
 
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [plagiarismResult, setPlagiarismResult] = useState<PlagiarismResult | null>(null);
-
-  async function handleImprove() {
-    if (!input.trim()) return;
-    setLoading(true);
-    setResult("");
-    try {
-      const res = await fetch("/api/improve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: input }),
-      });
-      const data = await res.json();
-      setResult(data.result || data.error || "No response received.");
-    } catch {
-      setResult("Error improving text.");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    function handleClickOutside() {
+      setActiveDropdown(null);
     }
-  }
 
-  async function handleDraft() {
-    if (!input.trim()) return;
-    setLoading(true);
-    setResult("");
-    try {
-      const res = await fetch("/api/draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input }),
-      });
-      const data = await res.json();
-      setResult(data.result || data.error || "No response received.");
-    } catch {
-      setResult("Error generating draft.");
-    } finally {
-      setLoading(false);
-    }
-  }
+    document.addEventListener("click", handleClickOutside);
 
-  async function handleFeedback() {
-    if (!input.trim()) return;
-    setLoading(true);
-    setFeedback(null);
-    try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: input }),
-      });
-      const data = await res.json();
-      setFeedback(data.feedback || null);
-    } catch {
-      setResult("Error getting feedback.");
-    } finally {
-      setLoading(false);
-    }
-  }
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, []);
 
-  async function handlePlagiarism() {
-    if (!input.trim()) return;
-    setLoading(true);
-    setPlagiarismResult(null);
-    try {
-      const res = await fetch("/api/plagiarism", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: input }),
-      });
-      const data = await res.json();
-      setPlagiarismResult(data.result || null);
-    } catch {
-      setResult("Error checking plagiarism.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const totalWords = useMemo(() => {
+    return drafts.reduce((sum, draft) => sum + countWords(draft.content), 0);
+  }, [drafts]);
 
-  async function handleGenerateCover() {
-    if (!coverTitle || !coverGenre || !coverDescription) return;
-    setLoading(true);
-    setCoverImage(null);
-    try {
-      const res = await fetch("/api/generate-cover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: coverTitle,
-          genre: coverGenre,
-          description: coverDescription,
-        }),
-      });
-      const data = await res.json();
-      if (data.imageUrl) setCoverImage(data.imageUrl);
-    } catch {
-      setResult("Error generating cover.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const completedTasks = tasks.filter((task) => task.done).length;
 
-  async function handleGenerateCitation() {
-    if (!citationTitle) return;
-    setLoading(true);
-    setCitations(null);
-    try {
-      const res = await fetch("/api/citation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: citationTitle,
-          author: citationAuthor,
-          year: citationYear,
-          url: citationUrl,
-          type: citationType,
-        }),
-      });
-      const data = await res.json();
-      if (data.citations) setCitations(data.citations);
-    } catch {
-      setResult("Error generating citations.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const tools: { id: ActiveTool; label: string; icon: string }[] = [
-    { id: "improve", label: "Improve", icon: "✨" },
-    { id: "draft", label: "Draft", icon: "📝" },
-    { id: "feedback", label: "Feedback", icon: "💬" },
-    { id: "plagiarism", label: "Plagiarism", icon: "🔍" },
-    { id: "cover", label: "Cover Art", icon: "🎨" },
-    { id: "citation", label: "Citations", icon: "📎" },
+  const notifications = [
+    `${drafts.length} draft${drafts.length === 1 ? "" : "s"} saved locally.`,
+    `${completedTasks} writing task${completedTasks === 1 ? "" : "s"} completed.`,
+    totalWords > 0 ? `${totalWords} total words written.` : "Start writing your first draft.",
   ];
 
+  const messages = ["No new messages yet.", "Writer community chat coming soon."];
+
+  const libraryItems = drafts.slice(0, 3).map((draft) => draft.title);
+
+  function toggleTask(index: number) {
+    const updated = tasks.map((task, i) =>
+      i === index ? { ...task, done: !task.done } : task
+    );
+
+    setTasks(updated);
+    localStorage.setItem("scriptora_writer_tasks", JSON.stringify(updated));
+  }
+
+  function toggleDropdown(type: DropdownType) {
+    setActiveDropdown((current) => (current === type ? null : type));
+  }
+
   return (
-    <main className="min-h-screen bg-white p-4">
-      <div className="min-h-[calc(100vh-32px)] overflow-hidden rounded-[32px] border border-[#D7DEEE] bg-[#F8FAFF] shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
-        <header className="flex items-center justify-between border-b border-[#E4EAF5] bg-[#1F3772] px-10 py-6">
-          <Link href="/" className="text-2xl font-semibold tracking-tight text-white">
-            Scriptora
+    <main className="min-h-screen overflow-x-hidden bg-[#071A46] bg-[radial-gradient(circle_at_top,#5D80E6_0%,#183A83_35%,#071A46_100%)] p-4 text-white">
+      <div className="pointer-events-none fixed inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:42px_42px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.15),transparent_35%)]" />
+
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-32px)] w-full max-w-7xl grid-cols-[280px_1fr] overflow-hidden rounded-2xl border border-white/20 bg-[#10255C]/70 shadow-[0_30px_90px_rgba(0,0,0,0.45)] backdrop-blur-md max-lg:grid-cols-1">
+        <aside className="border-r border-white/10 bg-[#071A46]/50 p-5 max-lg:border-r-0 max-lg:border-b">
+          <Link href="/" className="mb-8 flex items-center gap-3 text-2xl font-bold">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#6EA2FF] text-xl font-black text-[#071A46] shadow-lg">
+              S
+            </span>
+            <span>Scriptora</span>
           </Link>
-          <div className="flex w-[38%] items-center rounded-xl border border-[#D7DEEE] bg-[#F8FAFF] px-4 py-2">
+
+          <div className="space-y-2">
+            {sidebarItems.map((item, index) => (
+              <button
+                key={item.label}
+                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                  index === 0
+                    ? "bg-[#4D79E6] text-white shadow-lg"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <span className="text-lg text-[#8FB4FF]">{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative mt-10 rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm text-white/60">My Projects</p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowProjectsPopup((current) => !current);
+              }}
+              className="mt-3 flex w-full items-center justify-between rounded-lg bg-[#1C397E] px-3 py-3"
+            >
+              <span className="text-sm font-semibold">{drafts.length} drafts</span>
+              <span>›</span>
+            </button>
+            {showProjectsPopup && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute left-full top-8 z-40 ml-3 w-72 rounded-2xl border border-white/15 bg-[#0D1E4B] p-4 shadow-2xl"
+              >
+                <h3 className="font-semibold">My Projects</h3>
+                <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                  {drafts.length === 0 ? (
+                    <p className="text-sm text-white/50">No drafts yet.</p>
+                  ) : (
+                    drafts.map((draft) => (
+                      <Link
+                        key={draft.id}
+                        href={`/write?id=${draft.id}`}
+                        className="block rounded-lg bg-white/5 px-3 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white"
+                      >
+                        {draft.title}
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+
+          <div className="mt-10 rounded-xl border border-white/10 bg-[#4D79E6]/30 p-4">
+            <p className="text-xs text-white/60">Current Space</p>
+            <p className="mt-1 text-lg font-bold">Writer Dashboard</p>
+          </div>
+        </aside>
+
+        <section className="flex min-h-full flex-col">
+          <header className="relative flex items-center justify-between gap-4 border-b border-white/10 bg-[#18336F]/50 px-7 py-5 max-md:flex-col max-md:items-stretch">
             <input
-              type="text"
-              placeholder="Search"
-              className="w-full bg-transparent text-sm text-[#1F2A44] outline-none placeholder:text-[#94A3B8]"
+              placeholder="Search documents..."
+              className="w-[55%] rounded-xl border border-white/20 bg-[#10275F]/80 px-4 py-3 text-sm text-white outline-none placeholder:text-white/50 max-md:w-full"
             />
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:bg-white/10">
-              Language
-            </button>
-            <button className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:bg-white/10">
-              Light
-            </button>
-            <button className="rounded-xl bg-[#3B64BA] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#2D53A0]">
-              Share
-            </button>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#D8E1F5] text-sm font-semibold text-[#3B64BA]">
-              U
-            </div>
-          </div>
-        </header>
 
-        <div className="grid min-h-[calc(100vh-88px)] grid-cols-[220px_1fr_380px] overflow-hidden">
+            <div className="flex items-center gap-5 text-[#B8CCFF]">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDropdown("notifications");
+                }}
+                className="relative rounded-xl p-2 hover:bg-white/10"
+              >
+                <IconBell />
+                <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[#FF6B6B]" />
+              </button>
 
-          <aside className="bg-[#1F3772] px-5 py-6 text-white">
-            <div className="space-y-2">
-              {sidebarItems.map((item) => (
-                <button
-                  key={item.label}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition hover:bg-white/10"
-                >
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-            <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-sm font-medium">Current Writer</p>
-              <p className="mt-1 text-xs text-white/70">workspace active</p>
-            </div>
-          </aside>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDropdown("library");
+                }}
+                className="rounded-xl p-2 hover:bg-white/10"
+              >
+                <IconBook />
+              </button>
 
-          <section className="overflow-y-auto border-r border-[#E4EAF5] bg-[#F6F8FD] px-5 py-5">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div className="flex-1 rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] shadow-sm">
-                Research Paper on AI
-              </div>
-              <div className="flex gap-3">
-                <button className="rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm font-medium text-[#42526B] shadow-sm hover:bg-[#EEF3FC]">
-                  Share
-                </button>
-                <button className="rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm font-medium text-[#42526B] shadow-sm hover:bg-[#EEF3FC]">
-                  Download
-                </button>
-              </div>
-            </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDropdown("messages");
+                }}
+                className="rounded-xl p-2 hover:bg-white/10"
+              >
+                <IconMessage />
+              </button>
 
-            <div className="rounded-[24px] border border-[#D7DEEE] bg-white shadow-sm">
-              <div className="border-b border-[#E4EAF5] px-5 py-3 text-sm text-[#5E6B85]">
-                Style • Normal text • B I U
-              </div>
-              <div className="px-6 py-6">
-                <h1 className="text-[42px] font-bold leading-tight text-[#1F2A44]">
-                  Artificial Intelligence in Modern Writing
-                </h1>
-                <div className="mt-6 space-y-5 text-[17px] leading-8 text-[#42526B]">
-                  <p>In the modern writing environment, AI has transformed how authors, researchers, and students draft, refine, and organize their work.</p>
-                  <p>AI-powered tools support brainstorming, grammar correction, sentence restructuring, summarization, and citation generation, helping writers produce stronger work more efficiently.</p>
-                  <p>At the same time, the use of AI in writing raises important questions about ethics, originality, transparency, and the balance between human creativity and automation.</p>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDropdown("profile");
+                }}
+                className="h-11 w-11 overflow-hidden rounded-full border-2 border-white/30 bg-gradient-to-br from-[#E6ECFF] to-[#6EA2FF]"
+              >
+                <div className="flex h-full w-full items-center justify-center text-sm font-bold text-[#10255C]">
+                  FQ
                 </div>
-              </div>
-              <div className="flex items-center justify-between border-t border-[#E4EAF5] px-5 py-3 text-sm text-[#5E6B85]">
-                <div className="flex items-center gap-4">
-                  <span>Autosaved</span>
-                  <div className="h-2 w-40 rounded-full bg-[#E6EBF7]">
-                    <div className="h-2 w-3/4 rounded-full bg-[#59D1D1]" />
-                  </div>
-                  <span>452 words</span>
-                </div>
-                <span>Grammar: Good</span>
-              </div>
+              </button>
             </div>
 
-            <div className="mt-5 rounded-[24px] border border-[#D7DEEE] bg-white shadow-sm">
-              <div className="border-b border-[#E4EAF5] px-5 py-4">
-                <h2 className="text-[22px] font-semibold text-[#1F2A44]">Writing Space</h2>
-              </div>
-              <div className="px-6 py-6">
-                <h3 className="text-[32px] font-bold text-[#1F2A44]">
-                  Artificial Intelligence in Modern Writing
-                </h3>
-                <p className="mt-5 text-[16px] leading-8 text-[#42526B]">
-                  Introductions supporting the AI-researching models are impacting the writing environment and enabling authors to produce, revise, and strengthen their work through intelligent tools for clarity, structure, citation, and grammar.
-                </p>
-              </div>
-              <div className="flex items-center justify-between border-t border-[#E4EAF5] px-5 py-3 text-sm text-[#5E6B85]">
-                <div className="flex items-center gap-4">
-                  <span>Word</span>
-                  <div className="h-2 w-40 rounded-full bg-[#E6EBF7]">
-                    <div className="h-2 w-3/4 rounded-full bg-[#59D1D1]" />
-                  </div>
-                  <span>492 words</span>
-                </div>
-                <span>Grammar: Good</span>
-              </div>
-            </div>
-          </section>
+            {activeDropdown && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-7 top-[76px] z-30 w-72 rounded-2xl border border-white/15 bg-[#0D1E4B] p-4 shadow-2xl"
+              >
+                {activeDropdown === "notifications" && (
+                  <>
+                    <h3 className="font-semibold">Notifications</h3>
+                    <div className="mt-3 space-y-3 text-sm text-white/70">
+                      {notifications.map((item) => (
+                        <p key={item}>{item}</p>
+                      ))}
+                    </div>
+                  </>
+                )}
 
-          <aside className="overflow-y-auto bg-white px-4 py-5">
-            <div className="rounded-[24px] border border-[#D7DEEE] bg-[#FBFCFF] shadow-sm">
-              <div className="border-b border-[#E4EAF5] px-5 py-4">
-                <h2 className="text-[22px] font-semibold text-[#1F2A44]">Writing AI</h2>
-              </div>
+                {activeDropdown === "library" && (
+                  <>
+                    <h3 className="font-semibold">Recent Drafts</h3>
+                    <div className="mt-3 space-y-3 text-sm text-white/70">
+                      {libraryItems.length === 0 ? (
+                        <p>No drafts saved yet.</p>
+                      ) : (
+                        libraryItems.map((item) => <p key={item}>{item}</p>)
+                      )}
+                    </div>
+                  </>
+                )}
 
-              <div className="grid grid-cols-3 gap-2 px-4 pt-4">
-                {tools.map((tool) => (
-                  <button
-                    key={tool.id}
-                    onClick={() => {
-                      setActiveTool(tool.id);
-                      setResult("");
-                      setFeedback(null);
-                      setPlagiarismResult(null);
-                      setCoverImage(null);
-                      setCitations(null);
-                    }}
-                    className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-2 text-xs font-medium transition ${
-                      activeTool === tool.id
-                        ? "border-[#3B64BA] bg-[#3B64BA] text-white"
-                        : "border-[#D7DEEE] bg-white text-[#42526B] hover:bg-[#EEF3FC]"
-                    }`}
-                  >
-                    <span className="text-base">{tool.icon}</span>
-                    <span>{tool.label}</span>
+                {activeDropdown === "messages" && (
+                  <>
+                    <h3 className="font-semibold">Messages</h3>
+                    <div className="mt-3 space-y-3 text-sm text-white/70">
+                      {messages.map((item) => (
+                        <p key={item}>{item}</p>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {activeDropdown === "profile" && (
+                  <>
+                    <h3 className="font-semibold">Profile</h3>
+                    <div className="mt-3 space-y-3 text-sm text-white/70">
+                      <Link href="/profile" className="block hover:text-white">
+                        View Profile
+                      </Link>
+                      <Link href="/" className="block hover:text-white">
+                        Back Home
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </header>
+
+          <div className="grid flex-1 grid-cols-[minmax(0,1fr)_320px] gap-5 p-6 max-lg:grid-cols-1 max-sm:p-4">
+            <div className="space-y-5">
+              <section className="rounded-2xl border border-white/10 bg-white/10 p-6">
+                <h2 className="text-4xl font-bold">Welcome back!</h2>
+                <p className="mt-2 text-xl text-white/70">Ready to write something great?</p>
+
+                <div className="mt-6 flex gap-4">
+                  <Link href="/write/setup" className="rounded-xl bg-[#6EA2FF] px-5 py-3 font-semibold text-[#081B43]">
+                    + New Document
+                  </Link>
+
+                  <button className="rounded-xl border border-white/20 px-5 py-3 font-semibold text-white">
+                    Open Library
                   </button>
-                ))}
-              </div>
+                </div>
+              </section>
 
-              <div className="px-4 pb-4 pt-4">
+              <section className="rounded-2xl border border-white/10 bg-white/10 p-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-semibold">Recent Documents</h3>
+                  <button className="text-sm text-white/60">View All</button>
+                </div>
 
-                {(activeTool === "improve" || activeTool === "draft" || activeTool === "feedback" || activeTool === "plagiarism") && (
-                  <>
-                    <textarea
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder={activeTool === "draft" ? "Enter a topic or prompt to draft..." : "Paste your paragraph or essay here..."}
-                      className="min-h-[140px] w-full rounded-2xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none focus:border-[#3B64BA]"
-                    />
-                    <button
-                      onClick={
-                        activeTool === "improve" ? handleImprove :
-                        activeTool === "draft" ? handleDraft :
-                        activeTool === "feedback" ? handleFeedback :
-                        handlePlagiarism
-                      }
-                      disabled={loading}
-                      className="mt-3 w-full rounded-xl bg-[#3B64BA] py-3 font-semibold text-white transition hover:bg-[#2D53A0] disabled:opacity-60"
-                    >
-                      {loading ? "Processing..." :
-                        activeTool === "improve" ? "Improve Writing" :
-                        activeTool === "draft" ? "Generate Draft" :
-                        activeTool === "feedback" ? "Get Feedback" :
-                        "Check Plagiarism"
-                      }
-                    </button>
+                {drafts.length === 0 ? (
+                  <div className="mt-5 rounded-xl border border-dashed border-white/20 p-8 text-center text-white/60">
+                    No drafts yet. Click “New Document” to start writing.
+                  </div>
+                ) : (
+                  <div className="mt-5 grid grid-cols-3 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1">
+                    {drafts.slice(0, 3).map((draft) => (
+                      <Link key={draft.id} href={`/write?id=${draft.id}`}>
+                        <div>
+                          <div className="flex h-44 items-end rounded-xl bg-gradient-to-br from-[#4F7BEA] to-[#081B43] p-4 shadow-lg transition hover:scale-[1.02]">
+                            <p className="text-xl font-bold leading-tight">{draft.title}</p>
+                          </div>
 
-                    {(activeTool === "improve" || activeTool === "draft") && (
-                      <div className="mt-4 min-h-[120px] whitespace-pre-wrap rounded-2xl border border-[#D7DEEE] bg-white px-4 py-4 text-sm leading-6 text-[#42526B]">
-                        {loading ? "Processing..." : result || "AI response will appear here."}
-                      </div>
-                    )}
-
-                    {activeTool === "feedback" && feedback && (
-                      <div className="mt-4 space-y-3">
-                        {(["grammar", "clarity", "structure"] as const).map((cat) =>
-                          feedback[cat].length > 0 && (
-                            <div key={cat} className="rounded-xl border border-[#D7DEEE] bg-white p-4">
-                              <p className="mb-2 text-xs font-bold uppercase text-[#3B64BA]">{cat}</p>
-                              {feedback[cat].map((item, i) => (
-                                <div key={i} className="mb-2 text-sm text-[#42526B]">
-                                  <p className="font-medium text-[#B91C3E]">⚠ {item.issue}</p>
-                                  <p>→ {item.suggestion}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )
-                        )}
-                        <div className="rounded-xl border border-[#D7DEEE] bg-[#F0F7FF] p-4 text-sm text-[#1F2A44]">
-                          <p className="mb-1 text-xs font-bold uppercase text-[#3B64BA]">Overall</p>
-                          {feedback.overall}
-                        </div>
-                      </div>
-                    )}
-
-                    {activeTool === "plagiarism" && plagiarismResult && (
-                      <div className="mt-4 space-y-3">
-                        <div className={`rounded-xl border p-4 ${
-                          plagiarismResult.verdict === "Original" ? "border-green-200 bg-green-50" :
-                          plagiarismResult.verdict === "High Similarity" ? "border-red-200 bg-red-50" :
-                          "border-yellow-200 bg-yellow-50"
-                        }`}>
-                          <p className="text-sm font-bold text-[#1F2A44]">{plagiarismResult.verdict}</p>
-                          <p className="text-2xl font-bold text-[#3B64BA]">
-                            {plagiarismResult.similarityScore}%
-                            <span className="text-sm font-normal text-[#5E6B85]"> similarity</span>
+                          <p className="mt-3 text-sm font-semibold">
+                            {countWords(draft.content)} words
                           </p>
-                          <p className="mt-1 text-sm text-[#42526B]">{plagiarismResult.notes}</p>
+
+                          <p className="text-xs text-white/50">
+                            Updated {new Date(draft.updatedAt).toLocaleDateString()}
+                          </p>
                         </div>
-                        {plagiarismResult.flaggedPhrases.length > 0 && (
-                          <div className="rounded-xl border border-[#D7DEEE] bg-white p-4">
-                            <p className="mb-2 text-xs font-bold uppercase text-[#3B64BA]">Flagged Phrases</p>
-                            {plagiarismResult.flaggedPhrases.map((p, i) => (
-                              <div key={i} className="mb-2 text-sm">
-                                <p className="font-medium text-[#B91C3E]">"{p.phrase}"</p>
-                                <p className="text-[#5E6B85]">{p.reason}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {(activeTool === "improve" || activeTool === "draft") && (
-                      <div className="mt-6">
-                        <h3 className="text-sm font-semibold text-[#1F2A44]">Example Prompts</h3>
-                        <div className="mt-3 space-y-2">
-                          {examplePrompts.map((prompt) => (
-                            <button
-                              key={prompt}
-                              onClick={() => setInput(prompt)}
-                              className="block w-full rounded-2xl border border-[#E4EAF5] bg-white px-4 py-3 text-left text-xs leading-5 text-[#42526B] hover:bg-[#F6F8FD]"
-                            >
-                              {prompt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
+                      </Link>
+                    ))}
+                  </div>
                 )}
+              </section>
 
-                {activeTool === "cover" && (
-                  <>
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Book title *"
-                        value={coverTitle}
-                        onChange={(e) => setCoverTitle(e.target.value)}
-                        className="w-full rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none focus:border-[#3B64BA]"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Genre (e.g. Fantasy, Romance, Thriller)"
-                        value={coverGenre}
-                        onChange={(e) => setCoverGenre(e.target.value)}
-                        className="w-full rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none focus:border-[#3B64BA]"
-                      />
-                      <textarea
-                        placeholder="Brief description of your story..."
-                        value={coverDescription}
-                        onChange={(e) => setCoverDescription(e.target.value)}
-                        rows={3}
-                        className="w-full rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none focus:border-[#3B64BA]"
-                      />
-                      <button
-                        onClick={handleGenerateCover}
-                        disabled={loading || !coverTitle || !coverGenre || !coverDescription}
-                        className="w-full rounded-xl bg-[#3B64BA] py-3 font-semibold text-white transition hover:bg-[#2D53A0] disabled:opacity-60"
-                      >
-                        {loading ? "Generating cover..." : "🎨 Generate Cover"}
-                      </button>
-                    </div>
-                    {coverImage && (
-                      <div className="mt-4 text-center">
-                        <img src={coverImage} alt="Generated book cover" className="mx-auto h-64 rounded-xl object-cover shadow-md" />
-                        <a href={coverImage} download="book-cover.png" className="mt-3 inline-block text-sm font-medium text-[#3B64BA] underline">
-                          Download Cover
-                        </a>
-                      </div>
-                    )}
-                    {!coverImage && !loading && (
-                      <div className="mt-4 flex h-40 items-center justify-center rounded-xl border border-dashed border-[#D7DEEE] bg-[#F8FAFF] text-sm text-[#94A3B8]">
-                        Your generated cover will appear here
-                      </div>
-                    )}
-                  </>
-                )}
+              <section className="rounded-2xl border border-white/10 bg-white/10 p-6">
+                <h3 className="text-2xl font-semibold">Writing Tasks</h3>
 
-                {activeTool === "citation" && (
-                  <>
-                    <div className="space-y-3">
-                      <select
-                        value={citationType}
-                        onChange={(e) => setCitationType(e.target.value)}
-                        className="w-full rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none focus:border-[#3B64BA]"
-                      >
-                        <option value="book">Book</option>
-                        <option value="article">Journal Article</option>
-                        <option value="website">Website</option>
-                        <option value="video">Video</option>
-                      </select>
-                      <input type="text" placeholder="Title *" value={citationTitle} onChange={(e) => setCitationTitle(e.target.value)} className="w-full rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none focus:border-[#3B64BA]" />
-                      <input type="text" placeholder="Author(s)" value={citationAuthor} onChange={(e) => setCitationAuthor(e.target.value)} className="w-full rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none focus:border-[#3B64BA]" />
-                      <input type="text" placeholder="Year published" value={citationYear} onChange={(e) => setCitationYear(e.target.value)} className="w-full rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none focus:border-[#3B64BA]" />
-                      <input type="text" placeholder="URL (optional)" value={citationUrl} onChange={(e) => setCitationUrl(e.target.value)} className="w-full rounded-xl border border-[#D7DEEE] bg-white px-4 py-3 text-sm text-[#1F2A44] outline-none focus:border-[#3B64BA]" />
-                      <button
-                        onClick={handleGenerateCitation}
-                        disabled={loading || !citationTitle}
-                        className="w-full rounded-xl bg-[#3B64BA] py-3 font-semibold text-white transition hover:bg-[#2D53A0] disabled:opacity-60"
-                      >
-                        {loading ? "Generating..." : "📎 Generate Citations"}
-                      </button>
-                    </div>
-                    {citations && (
-                      <div className="mt-4 space-y-3">
-                        {(["apa", "mla", "chicago"] as const).map((format) => (
-                          <div key={format} className="rounded-xl border border-[#D7DEEE] bg-white p-4">
-                            <div className="mb-2 flex items-center justify-between">
-                              <p className="text-xs font-bold uppercase text-[#3B64BA]">{format}</p>
-                              <button onClick={() => navigator.clipboard.writeText(citations[format])} className="rounded-lg border border-[#D7DEEE] px-2 py-1 text-xs text-[#3B64BA] hover:bg-[#EEF3FC]">
-                                Copy
-                              </button>
-                            </div>
-                            <p className="text-sm leading-6 text-[#42526B]">{citations[format]}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {!citations && !loading && (
-                      <div className="mt-4 flex h-32 items-center justify-center rounded-xl border border-dashed border-[#D7DEEE] bg-[#F8FAFF] text-sm text-[#94A3B8]">
-                        APA, MLA & Chicago citations will appear here
-                      </div>
-                    )}
-                  </>
-                )}
-
-              </div>
+                <div className="mt-4 space-y-3">
+                  {tasks.map((task, index) => (
+                    <label key={task.text} className="flex items-center gap-3 border-b border-white/10 pb-3 text-white/80">
+                      <input type="checkbox" checked={task.done} onChange={() => toggleTask(index)} className="h-4 w-4" />
+                      <span className={task.done ? "text-white/40 line-through" : ""}>
+                        {task.text}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </section>
             </div>
-          </aside>
-        </div>
+
+            <aside className="space-y-5">
+              <section className="rounded-2xl border border-white/10 bg-white/10 p-6">
+                <h3 className="text-2xl font-semibold">Writing Stats</h3>
+
+                <div className="mx-auto mt-6 flex h-44 w-44 items-center justify-center rounded-full border-[12px] border-[#6EA2FF] shadow-[0_0_35px_rgba(110,162,255,0.35)]">
+                  <div className="text-center">
+                    <p className="text-4xl font-bold">{totalWords}</p>
+                    <p className="text-sm text-white/60">total words</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3 text-sm text-white/80">
+                  <div className="flex justify-between">
+                    <span>Total Drafts</span>
+                    <span>{drafts.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Completed Tasks</span>
+                    <span>{completedTasks}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Status</span>
+                    <span>Active Writer</span>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-white/10 bg-white/10 p-6">
+                <h3 className="text-xl font-semibold">Writing Resources</h3>
+
+                <div className="mt-5 grid grid-cols-2 gap-4">
+                  {["Plot", "Grammar", "Characters", "Citations"].map((resource) => (
+                    <button key={resource} className="rounded-xl border border-white/10 bg-[#1C397E]/80 px-3 py-6 text-sm font-semibold hover:bg-[#426DD8]">
+                      {resource}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </aside>
+          </div>
+        </section>
       </div>
     </main>
   );
